@@ -48,29 +48,39 @@ class handler(BaseHTTPRequestHandler):
             oanda_response.raise_for_status()
             oanda_soup = BeautifulSoup(oanda_response.content, "html.parser")
 
-            # Find the rates table
-            table = oanda_soup.find("table", class_="table")
-            if not table:
+            # Find all tables with class cc_live_rates22
+            tables = oanda_soup.find_all("table", class_="cc_live_rates22")
+            if not tables:
                 raise Exception("OANDA rates table not found")
 
             # GBP/USD
             gbp_bid, gbp_ask = "N/A", "N/A"
-            for row in table.find_all("tr"):
-                cells = row.find_all("td")
-                if len(cells) >= 3 and "GBP/USD" in cells[0].text.strip():
-                    gbp_bid = cells[1].text.strip()  # Bid
-                    gbp_ask = cells[2].text.strip()  # Ask
-                    break
+            for table in tables:
+                for row in table.find("tbody").find_all("tr"):
+                    cells = row.find_all("td")
+                    if len(cells) == 3 and "GBP/USD" in cells[0].text.strip():
+                        # Bid: concatenate parts
+                        bid_parts = cells[1].find("div", class_="cc_live_rates11").find_all("div")
+                        gbp_bid = "".join(part.text.strip() for part in bid_parts)
+                        # Ask: concatenate parts
+                        ask_parts = cells[2].find("div", class_="cc_live_rates11").find_all("div")
+                        gbp_ask = "".join(part.text.strip() for part in ask_parts)
+                        break
             results["GBP/USD"] = {"bid": gbp_bid, "ask": gbp_ask}
 
             # EUR/USD
             eur_bid, eur_ask = "N/A", "N/A"
-            for row in table.find_all("tr"):
-                cells = row.find_all("td")
-                if len(cells) >= 3 and "EUR/USD" in cells[0].text.strip():
-                    eur_bid = cells[1].text.strip()  # Bid
-                    eur_ask = cells[2].text.strip()  # Ask
-                    break
+            for table in tables:
+                for row in table.find("tbody").find_all("tr"):
+                    cells = row.find_all("td")
+                    if len(cells) == 3 and "EUR/USD" in cells[0].text.strip():
+                        # Bid: concatenate parts
+                        bid_parts = cells[1].find("div", class_="cc_live_rates11").find_all("div")
+                        eur_bid = "".join(part.text.strip() for part in bid_parts)
+                        # Ask: concatenate parts
+                        ask_parts = cells[2].find("div", class_="cc_live_rates11").find_all("div")
+                        eur_ask = "".join(part.text.strip() for part in ask_parts)
+                        break
             results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
 
             # Prepare JSON response
