@@ -10,9 +10,9 @@ ua = UserAgent()
 
 # URLs for each pair
 PAIRS = {
-    "XAU/USD": "https://www.kitco.com/charts/livegold.html",           # Kitco for XAU/USD
-    "GBP/USD": "https://www.investing.com/currencies/gbp-usd",        # Investing.com for GBP/USD
-    "EUR/USD": "https://www.investing.com/currencies/eur-usd"         # Investing.com for EUR/USD
+    "XAU/USD": "https://www.kitco.com/charts/livegold.html",  # Kitco for XAU/USD
+    "GBP/USD": "https://www.fxstreet.com/rates-charts/forex-rates",  # FXStreet for GBP/USD and EUR/USD
+    "EUR/USD": "https://www.fxstreet.com/rates-charts/forex-rates"
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -43,28 +43,36 @@ class handler(BaseHTTPRequestHandler):
 
             results["XAU/USD"] = {"bid": xau_bid, "ask": xau_ask}
 
-            # Scrape GBP/USD from Investing.com
-            gbp_response = requests.get(PAIRS["GBP/USD"], headers=headers, timeout=10)
-            gbp_response.raise_for_status()
-            gbp_soup = BeautifulSoup(gbp_response.content, "html.parser")
+            # Scrape GBP/USD and EUR/USD from FXStreet
+            fx_response = requests.get(PAIRS["GBP/USD"], headers=headers, timeout=10)
+            fx_response.raise_for_status()
+            fx_soup = BeautifulSoup(fx_response.content, "html.parser")
 
-            # GBP/USD bid and ask (Investing.com uses spans with data-test attributes)
-            gbp_bid_element = gbp_soup.find("span", {"data-test": "instrument-price-bid"})
-            gbp_ask_element = gbp_soup.find("span", {"data-test": "instrument-price-ask"})
-            gbp_bid = gbp_bid_element.text.strip() if gbp_bid_element else "N/A"
-            gbp_ask = gbp_ask_element.text.strip() if gbp_ask_element else "N/A"
+            # Find table rows with GBP/USD and EUR/USD
+            rows = fx_soup.find_all("tr", class_="fxst-rates-row")
+            
+            # GBP/USD
+            gbp_bid, gbp_ask = "N/A", "N/A"
+            for row in rows:
+                pair_cell = row.find("td", class_="fxst-asset")
+                if pair_cell and "GBP/USD" in pair_cell.text.strip():
+                    bid_ask = row.find_all("td", class_="fxst-bid-ask")
+                    if len(bid_ask) >= 2:
+                        gbp_bid = bid_ask[0].text.strip()  # Bid
+                        gbp_ask = bid_ask[1].text.strip()  # Ask
+                    break
             results["GBP/USD"] = {"bid": gbp_bid, "ask": gbp_ask}
 
-            # Scrape EUR/USD from Investing.com
-            eur_response = requests.get(PAIRS["EUR/USD"], headers=headers, timeout=10)
-            eur_response.raise_for_status()
-            eur_soup = BeautifulSoup(eur_response.content, "html.parser")
-
-            # EUR/USD bid and ask
-            eur_bid_element = eur_soup.find("span", {"data-test": "instrument-price-bid"})
-            eur_ask_element = eur_soup.find("span", {"data-test": "instrument-price-ask"})
-            eur_bid = eur_bid_element.text.strip() if eur_bid_element else "N/A"
-            eur_ask = eur_ask_element.text.strip() if eur_ask_element else "N/A"
+            # EUR/USD
+            eur_bid, eur_ask = "N/A", "N/A"
+            for row in rows:
+                pair_cell = row.find("td", class_="fxst-asset")
+                if pair_cell and "EUR/USD" in pair_cell.text.strip():
+                    bid_ask = row.find_all("td", class_="fxst-bid-ask")
+                    if len(bid_ask) >= 2:
+                        eur_bid = bid_ask[0].text.strip()  # Bid
+                        eur_ask = bid_ask[1].text.strip()  # Ask
+                    break
             results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
 
             # Prepare JSON response
