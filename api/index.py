@@ -3,6 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from http.server import BaseHTTPRequestHandler
+import json
+from datetime import datetime
 
 ua = UserAgent()
 
@@ -31,20 +33,35 @@ class handler(BaseHTTPRequestHandler):
             ask_element = soup.find("div", class_="mr-0.5 text-[19px] font-normal")
             ask_price = ask_element.text.strip() if ask_element else "N/A"
 
-            # Prepare response
-            if bid_price and ask_price:
-                result = f"Bid: {bid_price} USD | Ask: {ask_price} USD"
-            else:
-                result = "Couldn’t fetch data. Check selectors or site availability."
+            # Get current timestamp
+            timestamp = datetime.utcnow().isoformat() + "Z"  # ISO 8601 format with UTC
 
-            # Send response
+            # Prepare JSON response
+            if bid_price != "N/A" and ask_price != "N/A":
+                data = {
+                    "bid": bid_price,
+                    "ask": ask_price,
+                    "timestamp": timestamp
+                }
+            else:
+                data = {
+                    "error": "Couldn’t fetch data. Check selectors or site availability.",
+                    "timestamp": timestamp
+                }
+
+            # Send response as JSON
             self.send_response(200)
-            self.send_header("Content-type", "text/plain")
+            self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(result.encode("utf-8"))
+            self.wfile.write(json.dumps(data).encode("utf-8"))
 
         except requests.RequestException as e:
+            # Error response
+            error_data = {
+                "error": f"Error fetching data: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat() + "Z"
+            }
             self.send_response(500)
-            self.send_header("Content-type", "text/plain")
+            self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(f"Error fetching data: {str(e)}".encode("utf-8"))
+            self.wfile.write(json.dumps(error_data).encode("utf-8"))
