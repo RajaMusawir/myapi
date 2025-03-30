@@ -11,8 +11,8 @@ ua = UserAgent()
 # URLs for each pair
 PAIRS = {
     "XAU/USD": "https://www.kitco.com/charts/livegold.html",
-    "GBP/USD": "https://www.dailyfx.com/forex-rates",
-    "EUR/USD": "https://www.dailyfx.com/forex-rates"
+    "GBP/USD": "https://www1.oanda.com/currency/live-exchange-rates/",
+    "EUR/USD": "https://www1.oanda.com/currency/live-exchange-rates/"
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -43,15 +43,15 @@ class handler(BaseHTTPRequestHandler):
 
             results["XAU/USD"] = {"bid": xau_bid, "ask": xau_ask}
 
-            # Scrape GBP/USD and EUR/USD from DailyFX
-            dfx_response = requests.get(PAIRS["GBP/USD"], headers=headers, timeout=10)
-            dfx_response.raise_for_status()
-            dfx_soup = BeautifulSoup(dfx_response.content, "html.parser")
+            # Scrape GBP/USD and EUR/USD from OANDA
+            oanda_response = requests.get(PAIRS["GBP/USD"], headers=headers, timeout=10)
+            oanda_response.raise_for_status()
+            oanda_soup = BeautifulSoup(oanda_response.content, "html.parser")
 
             # Find the rates table
-            table = dfx_soup.find("table", class_="dfx-tableRates")
+            table = oanda_soup.find("table", class_="table")
             if not table:
-                raise Exception("DailyFX rates table not found")
+                raise Exception("OANDA rates table not found")
 
             # GBP/USD
             gbp_bid, gbp_ask = "N/A", "N/A"
