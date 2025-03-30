@@ -48,30 +48,30 @@ class handler(BaseHTTPRequestHandler):
             fx_response.raise_for_status()
             fx_soup = BeautifulSoup(fx_response.content, "html.parser")
 
-            # Find table rows with GBP/USD and EUR/USD
-            rows = fx_soup.find_all("tr", class_="fxst-rates-row")
-            
+            # Find all table rows
+            rows = fx_soup.find_all("tr")
+
             # GBP/USD
             gbp_bid, gbp_ask = "N/A", "N/A"
             for row in rows:
-                pair_cell = row.find("td", class_="fxst-asset")
+                pair_cell = row.find("td", id=lambda x: x and "Asset" in x)
                 if pair_cell and "GBP/USD" in pair_cell.text.strip():
-                    bid_ask = row.find_all("td", class_="fxst-bid-ask")
-                    if len(bid_ask) >= 2:
-                        gbp_bid = bid_ask[0].text.strip()  # Bid
-                        gbp_ask = bid_ask[1].text.strip()  # Ask
+                    bid_cell = row.find("td", id=lambda x: x and "Bid" in x)
+                    ask_cell = row.find("td", id=lambda x: x and "Ask" in x)
+                    gbp_bid = bid_cell.text.strip() if bid_cell else "N/A"
+                    gbp_ask = ask_cell.text.strip() if ask_cell else "N/A"
                     break
             results["GBP/USD"] = {"bid": gbp_bid, "ask": gbp_ask}
 
             # EUR/USD
             eur_bid, eur_ask = "N/A", "N/A"
             for row in rows:
-                pair_cell = row.find("td", class_="fxst-asset")
+                pair_cell = row.find("td", id=lambda x: x and "Asset" in x)
                 if pair_cell and "EUR/USD" in pair_cell.text.strip():
-                    bid_ask = row.find_all("td", class_="fxst-bid-ask")
-                    if len(bid_ask) >= 2:
-                        eur_bid = bid_ask[0].text.strip()  # Bid
-                        eur_ask = bid_ask[1].text.strip()  # Ask
+                    bid_cell = row.find("td", id=lambda x: x and "Bid" in x)
+                    ask_cell = row.find("td", id=lambda x: x and "Ask" in x)
+                    eur_bid = bid_cell.text.strip() if bid_cell else "N/A"
+                    eur_ask = ask_cell.text.strip() if ask_cell else "N/A"
                     break
             results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
 
