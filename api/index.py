@@ -7,7 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from seleniumbase import SB  # Simplifies headless Chrome setup
+from webdriver_manager.chrome import ChromeDriverManager
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -24,8 +24,13 @@ class handler(BaseHTTPRequestHandler):
             chrome_options.add_argument("--disable-gpu")
             chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-            # Use SeleniumBase for easier Chrome setup
-            with SB(uc=True, headless=True, driver_args=chrome_options) as driver:
+            # Initialize driver with webdriver_manager
+            driver = webdriver.Chrome(
+                service=webdriver.chrome.service.Service(ChromeDriverManager().install()),
+                options=chrome_options
+            )
+
+            try:
                 # Scrape XAU/USD from Kitco
                 driver.get("https://www.kitco.com/charts/livegold.html")
                 WebDriverWait(driver, 5).until(
@@ -63,6 +68,9 @@ class handler(BaseHTTPRequestHandler):
                         eur_ask = cells[3].text.strip()  # Ask
                         break
                 results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
+
+            finally:
+                driver.quit()
 
             # Prepare JSON response
             data = {
