@@ -11,8 +11,8 @@ ua = UserAgent()
 # URLs for each pair
 PAIRS = {
     "XAU/USD": "https://www.kitco.com/charts/livegold.html",
-    "GBP/USD": "https://www.forex.com/en/forex-trading/gbp-usd/",
-    "EUR/USD": "https://www.forex.com/en/forex-trading/eur-usd/"
+    "GBP/USD": "https://www.dailyfx.com/forex-rates",
+    "EUR/USD": "https://www.dailyfx.com/forex-rates"
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -43,28 +43,34 @@ class handler(BaseHTTPRequestHandler):
 
             results["XAU/USD"] = {"bid": xau_bid, "ask": xau_ask}
 
-            # Scrape GBP/USD from FOREX.com
-            gbp_response = requests.get(PAIRS["GBP/USD"], headers=headers, timeout=10)
-            gbp_response.raise_for_status()
-            gbp_soup = BeautifulSoup(gbp_response.content, "html.parser")
+            # Scrape GBP/USD and EUR/USD from DailyFX
+            dfx_response = requests.get(PAIRS["GBP/USD"], headers=headers, timeout=10)
+            dfx_response.raise_for_status()
+            dfx_soup = BeautifulSoup(dfx_response.content, "html.parser")
 
-            # GBP/USD bid and ask
-            gbp_bid_elem = gbp_soup.find("span", class_="quote__bid")
-            gbp_ask_elem = gbp_soup.find("span", class_="quote__ask")
-            gbp_bid = gbp_bid_elem.text.strip() if gbp_bid_elem else "N/A"
-            gbp_ask = gbp_ask_elem.text.strip() if gbp_ask_elem else "N/A"
+            # Find the rates table
+            table = dfx_soup.find("table", class_="dfx-tableRates")
+            if not table:
+                raise Exception("DailyFX rates table not found")
+
+            # GBP/USD
+            gbp_bid, gbp_ask = "N/A", "N/A"
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                if len(cells) >= 3 and "GBP/USD" in cells[0].text.strip():
+                    gbp_bid = cells[1].text.strip()  # Bid
+                    gbp_ask = cells[2].text.strip()  # Ask
+                    break
             results["GBP/USD"] = {"bid": gbp_bid, "ask": gbp_ask}
 
-            # Scrape EUR/USD from FOREX.com
-            eur_response = requests.get(PAIRS["EUR/USD"], headers=headers, timeout=10)
-            eur_response.raise_for_status()
-            eur_soup = BeautifulSoup(eur_response.content, "html.parser")
-
-            # EUR/USD bid and ask
-            eur_bid_elem = eur_soup.find("span", class_="quote__bid")
-            eur_ask_elem = eur_soup.find("span", class_="quote__ask")
-            eur_bid = eur_bid_elem.text.strip() if eur_bid_elem else "N/A"
-            eur_ask = eur_ask_elem.text.strip() if eur_ask_elem else "N/A"
+            # EUR/USD
+            eur_bid, eur_ask = "N/A", "N/A"
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                if len(cells) >= 3 and "EUR/USD" in cells[0].text.strip():
+                    eur_bid = cells[1].text.strip()  # Bid
+                    eur_ask = cells[2].text.strip()  # Ask
+                    break
             results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
 
             # Prepare JSON response
@@ -80,6 +86,15 @@ class handler(BaseHTTPRequestHandler):
         except requests.RequestException as e:
             error_data = {
                 "error": f"Error fetching data: {str(e)}",
+                "timestamp": timestamp
+            }
+            self.send_response(500)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(error_data).encode("utf-8"))
+        except Exception as e:
+            error_data = {
+                "error": f"Parsing error: {str(e)}",
                 "timestamp": timestamp
             }
             self.send_response(500)
