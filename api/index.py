@@ -49,29 +49,27 @@ class handler(BaseHTTPRequestHandler):
             fx_soup = BeautifulSoup(fx_response.content, "html.parser")
 
             # Find all table rows
-            rows = fx_soup.find_all("tr")
+            rows = fx_soup.find("tbody")
+            if not rows:
+                raise Exception("FXStreet table body not found")
 
             # GBP/USD
             gbp_bid, gbp_ask = "N/A", "N/A"
-            for row in rows:
-                pair_cell = row.find("td", id=lambda x: x and "Asset" in x)
-                if pair_cell and "GBP/USD" in pair_cell.text.strip():
-                    bid_cell = row.find("td", id=lambda x: x and "Bid" in x)
-                    ask_cell = row.find("td", id=lambda x: x and "Ask" in x)
-                    gbp_bid = bid_cell.text.strip() if bid_cell else "N/A"
-                    gbp_ask = ask_cell.text.strip() if ask_cell else "N/A"
+            for row in rows.find_all("tr"):
+                cells = row.find_all("td")
+                if len(cells) >= 4 and "GBP/USD" in cells[0].text.strip():
+                    gbp_bid = cells[2].text.strip()  # Bid is 3rd column
+                    gbp_ask = cells[3].text.strip()  # Ask is 4th column
                     break
             results["GBP/USD"] = {"bid": gbp_bid, "ask": gbp_ask}
 
             # EUR/USD
             eur_bid, eur_ask = "N/A", "N/A"
-            for row in rows:
-                pair_cell = row.find("td", id=lambda x: x and "Asset" in x)
-                if pair_cell and "EUR/USD" in pair_cell.text.strip():
-                    bid_cell = row.find("td", id=lambda x: x and "Bid" in x)
-                    ask_cell = row.find("td", id=lambda x: x and "Ask" in x)
-                    eur_bid = bid_cell.text.strip() if bid_cell else "N/A"
-                    eur_ask = ask_cell.text.strip() if ask_cell else "N/A"
+            for row in rows.find_all("tr"):
+                cells = row.find_all("td")
+                if len(cells) >= 4 and "EUR/USD" in cells[0].text.strip():
+                    eur_bid = cells[2].text.strip()  # Bid is 3rd column
+                    eur_ask = cells[3].text.strip()  # Ask is 4th column
                     break
             results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
 
@@ -88,6 +86,15 @@ class handler(BaseHTTPRequestHandler):
         except requests.RequestException as e:
             error_data = {
                 "error": f"Error fetching data: {str(e)}",
+                "timestamp": timestamp
+            }
+            self.send_response(500)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(error_data).encode("utf-8"))
+        except Exception as e:
+            error_data = {
+                "error": f"Parsing error: {str(e)}",
                 "timestamp": timestamp
             }
             self.send_response(500)
