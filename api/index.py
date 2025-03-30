@@ -11,8 +11,7 @@ ua = UserAgent()
 # URLs for each pair
 PAIRS = {
     "XAU/USD": "https://www.kitco.com/charts/livegold.html",
-    "GBP/USD": "https://www.poundsterlinglive.com/data/currencies/gbp-pairs/GBPUSD-exchange-rate",
-    "EUR/USD": "https://www.reuters.com/markets/quote/EURUSD=X/"
+    "GBP/USD": "https://www.poundsterlinglive.com/data/currencies/gbp-pairs/GBPUSD-exchange-rate"
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -42,42 +41,20 @@ class handler(BaseHTTPRequestHandler):
             gbp_response = requests.get(PAIRS["GBP/USD"], headers=headers, timeout=10)
             gbp_response.raise_for_status()
             gbp_soup = BeautifulSoup(gbp_response.content, "html.parser")
-            gbp_table = gbp_soup.find("div", class_="quote-data")
+            gbp_table = gbp_soup.find("table", class_="table data_stat_table")
             gbp_bid, gbp_ask = "N/A", "N/A"
             if gbp_table:
                 rows = gbp_table.find_all("tr")
                 for row in rows:
-                    cells = row.find_all("td")
-                    if len(cells) >= 2:
-                        label = cells[0].text.strip().lower()
+                    if row.find("div", class_="col-xs-8"):
+                        label = row.find("div", class_="col-xs-8").text.strip().lower()
                         if "bid" in label:
-                            gbp_bid = cells[1].text.strip()
-                        if "ask" in label or "offer" in label:  # Sometimes "Ask" is "Offer"
-                            gbp_ask = cells[1].text.strip()
+                            bid_div = row.find("div", class_="col-xs-4 bid_rate")
+                            gbp_bid = bid_div.text.strip() if bid_div else "N/A"
+                        if "ask" in label:
+                            ask_div = row.find("div", class_="col-xs-4")
+                            gbp_ask = ask_div.text.strip() if ask_div else "N/A"
             results["GBP/USD"] = {"bid": gbp_bid, "ask": gbp_ask}
-
-            # Scrape EUR/USD from Reuters
-            # eur_response = requests.get(PAIRS["EUR/USD"], headers=headers, timeout=10)
-            # eur_response.raise_for_status()
-            # eur_soup = BeautifulSoup(eur_response.content, "html.parser")
-            # eur_price_div = eur_soup.find("div", class_="ticker__price-details__2n8S")
-            # eur_bid, eur_ask = "N/A", "N/A"
-            # if eur_price_div:
-            #     spans = eur_price_div.find_all("span")
-            #     for i, span in enumerate(spans):
-            #         text = span.text.strip().lower()
-            #         if "bid" in text and i + 1 < len(spans):
-            #             eur_bid = spans[i + 1].text.strip()
-            #         if "ask" in text and i + 1 < len(spans):
-            #             eur_ask = spans[i + 1].text.strip()
-            # # Fallback: Reuters sometimes shows a single "Last" price
-            # if eur_bid == "N/A" and eur_ask == "N/A":
-            #     last_price = eur_soup.find("span", class_="ticker-price__price")
-            #     if last_price:
-            #         last = last_price.text.strip()
-            #         eur_bid = last  # Approximate bid/ask if only last price is available
-            #         eur_ask = last
-            # results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
 
             # Prepare JSON response
             data = {
