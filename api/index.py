@@ -11,7 +11,8 @@ ua = UserAgent()
 # URLs for each pair
 PAIRS = {
     "XAU/USD": "https://www.kitco.com/charts/livegold.html",
-    "GBP/USD": "https://www.poundsterlinglive.com/data/currencies/gbp-pairs/GBPUSD-exchange-rate"
+    "GBP/USD": "https://www.poundsterlinglive.com/data/currencies/gbp-pairs/GBPUSD-exchange-rate",
+    "EUR/USD": "https://research.tradermade.com/api/v1/live?currency=EURUSD"  # Direct API call
 }
 
 class handler(BaseHTTPRequestHandler):
@@ -55,6 +56,16 @@ class handler(BaseHTTPRequestHandler):
                             ask_div = row.find("div", class_="col-xs-4")
                             gbp_ask = ask_div.text.strip() if ask_div else "N/A"
             results["GBP/USD"] = {"bid": gbp_bid, "ask": gbp_ask}
+
+            # Fetch EUR/USD from TraderMade API
+            eur_response = requests.get(PAIRS["EUR/USD"], headers=headers, timeout=10)
+            eur_response.raise_for_status()
+            eur_data = eur_response.json()
+            eur_bid, eur_ask = "N/A", "N/A"
+            if "quotes" in eur_data and len(eur_data["quotes"]) > 0:
+                eur_bid = str(round(eur_data["quotes"][0]["bid"], 5))  # Match HTML precision
+                eur_ask = str(round(eur_data["quotes"][0]["ask"], 5))
+            results["EUR/USD"] = {"bid": eur_bid, "ask": eur_ask}
 
             # Prepare JSON response
             data = {
